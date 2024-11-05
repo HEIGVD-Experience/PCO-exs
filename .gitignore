@@ -1,4 +1,5 @@
 .idea
+.DS_Store
 
 _exemples/*/CMakeFiles
 _exemples/*/cmake_install.cmake
