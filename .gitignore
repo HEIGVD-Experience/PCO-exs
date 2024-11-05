@@ -1,0 +1,11 @@
+.idea
+
+_exemples/*/CMakeFiles
+_exemples/*/cmake_install.cmake
+_exemples/*/CMakeCache.txt
+_exemples/*/Makefile
+
+*/build-code-Desktop-Debug
+*/code/.idea
+*/code/cmake-build-debug
+*/code/CMakeLists.txt.user
