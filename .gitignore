@@ -6,7 +6,11 @@ _exemples/*/cmake_install.cmake
 _exemples/*/CMakeCache.txt
 _exemples/*/Makefile
 
+build*
 */build-code-Desktop-Debug
 */code/.idea
 */code/cmake-build-debug
 */code/CMakeLists.txt.user
+*/.idea
+*/cmake-build-debug
+*/CMakeLists.txt.user
