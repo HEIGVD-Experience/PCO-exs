@@ -5,8 +5,13 @@
 class BridgeManagerFloat
 {
 public:
-    BridgeManagerFloat(float maxWeight)
+    BridgeManagerFloat(float _maxWeight)
     {
+        this->maxWeight = (int)_maxWeight - 1;
+        for(int i = 0 ; i < maxWeight ; ++i)
+        {
+            bridgeControl.release();
+        }
 
     }
 
@@ -17,6 +22,15 @@ public:
 
     void access(float weight)
     {
+        mutex->acquire();
+        if(currentWeight + weight < maxWeight)
+        {
+            for(int i = 0 ; i < weight; ++i)
+                bridgeControl.acquire();
+        } else
+        {
+            bridgeControl.acquire();
+        }
 
     }
 
@@ -24,4 +38,8 @@ public:
     {
 
     }
+protected:
+    PcoSemaphore bridgeControl;
+    PcoSemaphore* mutex = new PcoSemaphore(0);
+    int maxWeight, currentWeight = 0;
 };
