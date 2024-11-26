@@ -108,7 +108,7 @@ void test(BridgeManagerFloat *manager, float maxWeight, int nbVehicles)
     std::vector<std::unique_ptr<Vehicle> > vehicles(nbVehicles);
     std::vector<std::unique_ptr<PcoThread> > threadsVoiture(nbVehicles);
     for(int t = 0; t < nbVehicles; t++){
-//        logger() << "Création de la tâche voiture " << t << std::endl;
+        logger() << "Création de la tâche voiture " << t << std::endl;
         vehicles[t] = std::make_unique<Vehicle>(t);
         threadsVoiture[t] = std::make_unique<PcoThread>(vehicleTask, checker.get(), manager, vehicles[t].get(), 3);
     }

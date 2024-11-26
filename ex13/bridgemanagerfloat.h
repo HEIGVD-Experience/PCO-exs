@@ -1,45 +1,37 @@
-
 #include <pcosynchro/pcosemaphore.h>
 
-
-class BridgeManagerFloat
-{
+class BridgeManagerFloat {
 public:
     BridgeManagerFloat(float _maxWeight)
-    {
-        this->maxWeight = (int)_maxWeight - 1;
-        for(int i = 0 ; i < maxWeight ; ++i)
-        {
-            bridgeControl.release();
+        : bridgeWaiting(0), mutex(1), maxWeight(static_cast<int>(_maxWeight)), currentWeight(0) {}
+
+    ~BridgeManagerFloat() {}
+
+    void access(float weight) {
+        while (true) {
+            mutex.acquire();
+            if (currentWeight + weight <= maxWeight) {
+                currentWeight += weight;
+                mutex.release();
+                break;
+            } else {
+                mutex.release();
+                bridgeWaiting.acquire();
+            }
         }
-
     }
 
-    ~BridgeManagerFloat()
-    {
+    void leave(float weight) {
+        mutex.acquire();
+        currentWeight -= weight;
+        mutex.release();
 
+        bridgeWaiting.release();
     }
 
-    void access(float weight)
-    {
-        mutex->acquire();
-        if(currentWeight + weight < maxWeight)
-        {
-            for(int i = 0 ; i < weight; ++i)
-                bridgeControl.acquire();
-        } else
-        {
-            bridgeControl.acquire();
-        }
-
-    }
-
-    void leave(float weight)
-    {
-
-    }
 protected:
-    PcoSemaphore bridgeControl;
-    PcoSemaphore* mutex = new PcoSemaphore(0);
-    int maxWeight, currentWeight = 0;
+    PcoSemaphore bridgeWaiting;
+    PcoSemaphore mutex;
+    int maxWeight;
+    int currentWeight;
 };
