@@ -13,7 +13,10 @@ public:
 
     virtual ~Buffer2ConsoSemaphore() {}
 
-    virtual void put(T item) {}
+    virtual void put(T item) {
+      mutex.lock();
+
+    }
     virtual T get() { return {};}
 };
 
