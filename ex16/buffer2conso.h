@@ -6,7 +6,7 @@
 
 /*
 INFO:
-Je rends quand même, même si chez moi les tests passent. Je ne comprends pas les deux premiers marchait
+Je rends quand même, même si chez moi les tests ne passent plus. Je ne comprends pas les deux premiers marchait
 et au moment de valider le 3ème plus aucun ne marche. J'ai eu beau chercher pourquoi je n'ai pas trouvé.
  */
 
