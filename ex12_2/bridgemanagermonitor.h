@@ -1,8 +1,6 @@
 
 #include <pcosynchro/pcosemaphore.h>
 
-const unsigned int CARWEIGHT = 1;
-const unsigned int TRUCKWEIGHT = 10;
 
 class BridgeManager
 {
