@@ -17,7 +17,7 @@ class Buffer2ConsoSemaphore : public AbstractBuffer<T> {
 protected:
     struct BufferItem {
         T data;
-        int consummed = 0;
+        int consummed;
     };
 
     std::vector<BufferItem> buffer;
@@ -38,23 +38,23 @@ public:
 
         // Insérer l'élément dans le buffer
         buffer[writePointer].data = item;
+        buffer[writePointer].consummed = 0;
         writePointer = (writePointer + 1) % bufferSize;
 
         // Relâcher pour permettre à NB_CONSO consommateurs de consommer
         for(int i = 0; i < NB_CONSO; i++) {
-          waitNotEmpty.release();
+            waitNotEmpty.release();
         }
 
         mutex.release();
     }
 
     virtual T get() {
-        T item;
         waitNotEmpty.acquire();
         mutex.acquire();
 
         // Récupérer l'élément
-        item = buffer[readPointer].data;
+        T item = buffer[readPointer].data;
         buffer[readPointer].consummed++;
 
         // Si cet élément est complètement consommé, déplacer le pointeur de lecture
@@ -77,7 +77,7 @@ class Buffer2ConsoMesa : public AbstractBuffer<T> {
 protected:
     struct BufferItem {
         T data;
-        int consumed = 0; // Nombre de fois où l'élément a été consommé
+        int consummed;
     };
 
     std::vector<BufferItem> buffer;
@@ -100,6 +100,7 @@ public:
 
         // Ajouter un élément dans le tampon
         buffer[writePointer].data = item;
+        buffer[writePointer].consummed = 0;
         writePointer = (writePointer + 1) % bufferSize;
         nbElement++;
 
@@ -118,10 +119,10 @@ public:
 
         // Récupérer l'élément
         item = buffer[readPointer].data;
-        buffer[readPointer].consumed++;
+        buffer[readPointer].consummed++;
 
         // Si l'élément a été consommé par tous les consommateurs, avancer le pointeur de lecture
-        if (buffer[readPointer].consumed == NB_CONSO) {
+        if (buffer[readPointer].consummed == NB_CONSO) {
             readPointer = (readPointer + 1) % bufferSize;
             nbElement--;
             // Notifier les producteurs qu'il y a une place disponible
@@ -142,7 +143,7 @@ class Buffer2ConsoHoare : public AbstractBuffer<T>, public PcoHoareMonitor {
 protected:
     struct BufferItem {
         T data;
-        int consumed = 0; // Nombre de fois où l'élément a été consommé
+        int consummed;
     };
 
     std::vector<BufferItem> buffer;
@@ -160,11 +161,12 @@ public:
         monitorIn();
 
         // Attendre qu'il y ait de la place dans le tampon
-        while (nbElement == bufferSize)
+        if (nbElement == bufferSize)
             wait(notFull);
 
         // Ajouter un élément au tampon
         buffer[writePointer].data = item;
+        buffer[writePointer].consummed = 0;
         writePointer = (writePointer + 1) % bufferSize;
         nbElement++;
 
@@ -178,15 +180,15 @@ public:
         monitorIn();
 
         // Attendre qu'un élément soit disponible
-        while (nbElement == 0 || buffer[readPointer].consumed == NB_CONSO)
+        if (nbElement == 0)
             wait(notEmpty);
 
         // Récupérer l'élément
         T item = buffer[readPointer].data;
-        buffer[readPointer].consumed++;
+        buffer[readPointer].consummed++;
 
         // Si l'élément a été consommé par tous les consommateurs, avancer le pointeur de lecture
-        if (buffer[readPointer].consumed == NB_CONSO) {
+        if (buffer[readPointer].consummed == NB_CONSO) {
             readPointer = (readPointer + 1) % bufferSize;
             nbElement--;
 
@@ -198,6 +200,7 @@ public:
         return item;
     }
 };
+
 
 
 
