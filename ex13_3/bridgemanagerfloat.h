@@ -3,31 +3,28 @@
 
 class BridgeManagerFloat {
 public:
-    BridgeManagerFloat(float _maxWeight) : availableWeight(_maxWeight) {}
+    BridgeManagerFloat(float maxWeight) : maxWeight(maxWeight), currentWeight(0) {}
 
     ~BridgeManagerFloat() {}
 
     void access(float weight) {
         monitorIn();
-
-        while (availableWeight < weight) {
-            wait(freeWeight);
+        if (currentWeight + weight > maxWeight) {
+            wait(isFree);
         }
 
-        availableWeight -= weight;
-        signal(freeWeight);
-
+        currentWeight += weight;
         monitorOut();
     }
 
     void leave(float weight) {
         monitorIn();
-        availableWeight += weight;
-        signal(freeWeight);
+        currentWeight -= weight;
+        signal(isFree);
         monitorOut();
     }
 
 protected:
-    int availableWeight;
-    Condition freeWeight;
+    float maxWeight, currentWeight;
+    Condition isFree;
 };

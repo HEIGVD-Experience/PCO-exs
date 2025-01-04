@@ -3,30 +3,28 @@
 
 class BridgeManagerFloat {
 public:
-    BridgeManagerFloat(float _maxWeight) : availableWeight(_maxWeight) {}
+    BridgeManagerFloat(float maxWeight) : maxWeight(maxWeight), currentWeight(0) {}
 
     ~BridgeManagerFloat() {}
 
     void access(float weight) {
         mutex.lock();
-
-        while(weight > availableWeight) {
+        while(currentWeight + weight > maxWeight) {
             condition.wait(&mutex);
         }
-        availableWeight -= weight;
-        condition.notifyOne();
+        currentWeight += weight;
         mutex.unlock();
     }
 
     void leave(float weight) {
         mutex.lock();
-        availableWeight += weight;
-        condition.notifyOne();
+        currentWeight -= weight;
+        condition.notifyAll();
         mutex.unlock();
     }
 
 protected:
     PcoMutex mutex;
     PcoConditionVariable condition;
-    int availableWeight;
+    float maxWeight, currentWeight;
 };
