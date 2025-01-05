@@ -171,7 +171,8 @@ public:
         nbElement++;
 
         // Signaler qu'un élément est disponible pour les consommateurs
-        signal(notEmpty);
+        for(int i = 0; i < NB_CONSO; i++)
+            signal(notEmpty);
 
         monitorOut();
     }
