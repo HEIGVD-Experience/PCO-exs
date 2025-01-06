@@ -22,48 +22,59 @@
 
 
 class ReaderWriterPrioWriterGeneral :
-      public AbstractReaderWriter {
+      public AbstractReaderWriter, PcoHoareMonitor {
 protected:
 	Condition waitRead, waitWrite;
-	int nbReaders, nbWriters, nbWritersWaiting;
+	int nbReaders, nbWriters, nbWritersWaiting, nbReadersWaiting;
 
 public:
   ReaderWriterPrioWriterGeneral() :
     nbReaders(0),
-		nbWriters(0),
-    nbWritersWaiting(0)
+	nbWriters(0),
+    nbWritersWaiting(0),
+    nbReadersWaiting(0)
     {}
 
     void lockReading() override {
-      monitorIn();
-      if(nbWriters > 0 || nbWritersWaiting > 0) {
-				waitRead.wait();
-			}
-      nbReaders++;
-      monitorOut();
+		monitorIn();
+        nbReadersWaiting++;
+		if(nbWriters > 0 || nbWritersWaiting > 0) {
+			wait(waitRead);
+		}
+        nbReadersWaiting--;
+		nbReaders++;
+		monitorOut();
     }
 
     void unlockReading() override {
   		monitorIn();
     	nbReaders--;
-			if(nbReaders == 0) {
-				waitWrite.signal();
-			}
+		if(nbReaders == 0) {
+			signal(waitWrite);
+		}
   		monitorOut();
     }
 
-		void lockWriting() override {
-  		monitorIn();
-      nbWritersWaiting++;
-      if(nbReaders > 0 || nbWriters > 0) {
-				waitWrite.wait();
-			}
-  		monitorOut();
+	void lockWriting() override {
+		monitorIn();
+		nbWritersWaiting++;
+		if(nbReaders > 0 || nbWriters > 0) {
+			wait(waitWrite);
 		}
+        nbWritersWaiting--;
+        nbWriters++;
+		monitorOut();
+	}
 
-		void unlockWriting() override {
+	void unlockWriting() override {
   		monitorIn();
+        nbWriters--;
+	    if(nbWritersWaiting > 0) {
+        	signal(waitWrite);
+        } else {
+        	signal(waitRead);
+        }
   		monitorOut();
-	  }
+	}
 };
 #endif // READERWRITERPRIOWRITERGENERAL_H
