@@ -22,64 +22,84 @@
 #include "abstracttoilets.h"
 
 
-class ToiletASemaphore : public AbstractToilet {
+class ToiletASemaphore : public AbstractToilet
+{
 private:
-    PcoSemaphore mutex, lockHomme, lockFemme;
-    int nbFemme = 0, nbHomme = 0, nbFemmeWaiting = 0;
+    PcoSemaphore mutex;
 
+    PcoSemaphore semWomanWait;
+    size_t nbWomanWait;
+
+    PcoSemaphore semManWait;
+    size_t nbManWait;
+
+    size_t nbIn;
+    bool isWomanIn;
 public:
-    ToiletASemaphore(int nbSeats)
-        : AbstractToilet(nbSeats), mutex(1), lockHomme(1), lockFemme(1) {}
+    ToiletASemaphore(int nbSeats) : AbstractToilet(nbSeats), mutex(1), semManWait(0), nbManWait(0), semWomanWait(0), nbWomanWait(0)
+    {}
 
     void manAccessing() override {
         mutex.acquire();
-        while (nbFemme > 0 || nbFemmeWaiting > 0 || nbHomme == nbSeats) {
+
+        while((nbIn != 0 && isWomanIn) || nbIn >= nbSeats) {
+            ++nbManWait;
             mutex.release();
-            lockHomme.acquire();
+            semManWait.acquire();
             mutex.acquire();
         }
-        nbHomme++;
+
+        ++nbIn;
+        isWomanIn = false;
         mutex.release();
     }
 
     void manLeaving() override {
         mutex.acquire();
-        nbHomme--;
-        if (nbFemmeWaiting > 0) {
-            lockFemme.release();
-        } else if (nbHomme < nbSeats) {
-            lockHomme.release();
+        --nbIn;
+
+        if(nbManWait > 0) {
+            --nbManWait;
+            semManWait.release();
+        } else if(nbWomanWait > 0 && nbIn == 0) {
+            for(int i = 0; i < nbWomanWait; ++i) semWomanWait.release();
+            nbWomanWait = 0;
         }
+
         mutex.release();
     }
 
     void womanAccessing() override {
         mutex.acquire();
-        nbFemmeWaiting++;
-        while (nbHomme > 0 || nbFemme == nbSeats) {
+
+        while((nbIn != 0 && !isWomanIn) || nbIn >= nbSeats) {
+            ++nbWomanWait;
             mutex.release();
-            lockFemme.acquire();
+            semWomanWait.acquire();
             mutex.acquire();
         }
-        nbFemmeWaiting--;
-        nbFemme++;
-        if (nbFemme == 1) {
-            lockHomme.acquire(); // Bloquer l'accès des hommes
-        }
+
+        ++nbIn;
+        isWomanIn = true;
         mutex.release();
     }
 
     void womanLeaving() override {
         mutex.acquire();
-        nbFemme--;
-        if (nbFemme > 0) {
-            lockFemme.release(); // Permettre à d'autres femmes d'entrer
-        } else if (nbFemmeWaiting == 0) {
-            lockHomme.release(); // Permettre aux hommes d'entrer
+        --nbIn;
+
+        if(nbWomanWait > 0) {
+            --nbWomanWait;
+            semWomanWait.release();
+        } else if(nbManWait > 0 && nbIn == 0) {
+            for(int i = 0; i < nbManWait; ++i) semManWait.release();
+            nbManWait = 0;
         }
+
         mutex.release();
     }
 };
+
 
 class ToiletAMesa : public AbstractToilet
 {
@@ -121,20 +141,31 @@ public:
 
 class ToiletBSemaphore : public AbstractToilet
 {
+private:
+ 	PcoSemaphore mutex, lockMan, lockWoman;
+    int nbMan = 0, nbWoman = 0, nbWomanWaiting = 0;
 public:
-    ToiletBSemaphore(int nbSeats) : AbstractToilet(nbSeats)
+    ToiletBSemaphore(int nbSeats) : AbstractToilet(nbSeats), lockMan(0), lockWoman(0), mutex(1)
     {}
 
     void manAccessing() override {
+        mutex.acquire();
+        mutex.release();
     }
 
     void manLeaving() override {
+		mutex.acquire();
+      	mutex.release();
     }
 
     void womanAccessing() override {
+        mutex.acquire();
+        mutex.release();
     }
 
     void womanLeaving() override {
+        mutex.acquire();
+        mutex.release();
     }
 };
 
