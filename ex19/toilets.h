@@ -174,7 +174,7 @@ public:
 class ToiletAHoare : public AbstractToilet, public PcoHoareMonitor
 {
 private:
-    size_t nbIn, nbManWait, nbWomanWait;
+    int nbIn, nbManWait, nbWomanWait;
     bool isWomanIn;
     Condition manCond, womanCond;
 public:
@@ -206,7 +206,7 @@ public:
 
     void womanAccessing() override {
         monitorIn();
-        while ((nbIn != 0 && !isWomanIn) || nbIn >= nbSeats) {
+        if ((nbIn != 0 && !isWomanIn) || nbIn >= nbSeats) {
             ++nbWomanWait;
             wait(womanCond);
             --nbWomanWait;
@@ -234,10 +234,10 @@ private:
     PcoSemaphore mutex;
 
     PcoSemaphore semWomanWait;
-    size_t nbWomanWait;
+    int nbWomanWait;
 
     PcoSemaphore semManWait;
-    size_t nbManWait;
+    int nbManWait;
 
     size_t nbIn;
     bool isWomanIn;
@@ -364,20 +364,64 @@ public:
 
 class ToiletBHoare : public AbstractToilet, public PcoHoareMonitor
 {
+private:
+
+    Condition waitWoman, waitMan;
+
+    int nbIn, nbManWait, nbWomanWait, toRelease;
+    bool isWomanIn;
+
 public:
-    ToiletBHoare(int nbSeats) : AbstractToilet(nbSeats)
+    ToiletBHoare(int nbSeats) : AbstractToilet(nbSeats), nbIn(0), nbManWait(0), nbWomanWait(0),
+                              isWomanIn(false), toRelease(0)
     {}
 
     void manAccessing() override {
+        monitorIn();
+        if ((nbIn > 0 && isWomanIn) || nbWomanWait > 0 || nbIn >= nbSeats) {
+            ++nbManWait;
+            wait(waitMan);
+            --nbManWait;
+        }
+        ++nbIn;
+        isWomanIn = false;
+        monitorOut();
     }
 
     void manLeaving() override {
+        monitorIn();
+        --nbIn;
+        if (nbManWait > 0 && nbWomanWait == 0) {
+            --nbManWait;
+            signal(waitMan);
+        } else if (nbWomanWait > 0 && nbIn == 0) {
+            for(size_t i = 0 ; i < nbWomanWait ; i++) signal(waitWoman);
+        }
+        monitorOut();
     }
 
     void womanAccessing() override {
+        monitorIn();
+        if ((nbIn > 0 && !isWomanIn) || nbIn >= nbSeats) {
+            ++nbWomanWait;
+            wait(waitWoman);
+            --nbWomanWait;
+        }
+        ++nbIn;
+        isWomanIn = true;
+        monitorOut();
     }
 
     void womanLeaving() override {
+        monitorIn();
+        --nbIn;
+        if (nbWomanWait > 0) {
+            --nbWomanWait;
+            signal(waitWoman);
+        } else if (nbManWait > 0 && nbIn == 0) {
+            for(size_t i = 0 ; i < nbManWait ; i++) signal(waitMan);
+        }
+        monitorOut();
     }
 };
 
