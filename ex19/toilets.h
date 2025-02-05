@@ -42,6 +42,7 @@ public:
     void manAccessing() override {
         mutex.acquire();
 
+        // Tant qu'il y a des femmes dans les toilettes ou que le nombre de places est atteint on attend
         while((nbIn != 0 && isWomanIn) || nbIn >= nbSeats) {
             ++nbManWait;
             mutex.release();
@@ -103,20 +104,70 @@ public:
 
 class ToiletAMesa : public AbstractToilet
 {
+private:
+    PcoMutex mutex;
+    PcoConditionVariable condMan, condWoman;
+
+    size_t nbIn, nbManWait, nbWomanWait;
+    bool isWomanIn;
+
 public:
-    ToiletAMesa(int nbSeats) : AbstractToilet(nbSeats)
+    ToiletAMesa(int nbSeats) : AbstractToilet(nbSeats), nbIn(0), nbManWait(0), nbWomanWait(0), isWomanIn(false)
     {}
 
     void manAccessing() override {
+        mutex.lock();
+
+        while((nbIn != 0 && isWomanIn) || nbIn >= nbSeats) {
+            ++nbManWait;
+            condMan.wait(&mutex);
+        }
+
+        ++nbIn;
+        isWomanIn = false;
+        mutex.unlock();
     }
 
     void manLeaving() override {
+        mutex.lock();
+        --nbIn;
+
+        if(nbManWait > 0) {
+            --nbManWait;
+            condMan.notifyOne();
+        } else if(nbWomanWait > 0 && nbIn == 0) {
+            condWoman.notifyAll();
+            nbWomanWait = 0;
+        }
+
+        mutex.unlock();
     }
 
     void womanAccessing() override {
+        mutex.lock();
+
+        while((nbIn != 0 && !isWomanIn) || nbIn >= nbSeats) {
+            ++nbWomanWait;
+            condWoman.wait(&mutex);
+        }
+
+        ++nbIn;
+        isWomanIn = true;
+        mutex.unlock();
     }
 
     void womanLeaving() override {
+        mutex.lock();
+        --nbIn;
+
+        if(nbWomanWait > 0) {
+            --nbWomanWait;
+            condWoman.notifyOne();
+        } else if(nbManWait > 0 && nbIn == 0) {
+            condMan.notifyAll();
+            nbManWait = 0;
+        }
+        mutex.unlock();
     }
 };
 

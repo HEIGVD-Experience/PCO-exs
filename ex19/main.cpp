@@ -163,8 +163,8 @@ protected:
     }
 };
 
-using MyTypes = ::testing::Types<ToiletASemaphore/*,
-                                 ToiletAMesa,
+using MyTypes = ::testing::Types</*ToiletASemaphore,*/
+                                 ToiletAMesa/*,
                                  ToiletAHoare,
                                  ToiletBSemaphore,
                                  ToiletBMesa,
