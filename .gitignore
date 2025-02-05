@@ -19,3 +19,5 @@ build*
 */CMakeCache.txt
 */Makefile
 /ex7/sequentialite2_tests
+/ex14_1/bridgefloatstop_tests
+/ex17/semaphorefrommonitor_tests
