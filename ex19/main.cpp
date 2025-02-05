@@ -163,19 +163,7 @@ protected:
     }
 };
 
-using MyTypes = ::testing::Types</*ToiletASemaphore,
-                                 ToiletAMesa,*/
-                                 ToiletAHoare/*,
-                                 ToiletBSemaphore,
-                                 ToiletBMesa,
-                                 ToiletBHoare,
-                                 ToiletCSemaphore,
-                                 ToiletCMesa,
-                                 ToiletCHoare,
-                                 ToiletDSemaphore,
-                                 ToiletDMesa,
-                                 ToiletDHoare*/
->;
+using MyTypes = ::testing::Types<ToiletBMesa>;
 /*
 using MyTypes = ::testing::Types<ToiletASemaphore //,
                                  // ToiletAMesa,

@@ -231,49 +231,134 @@ public:
 class ToiletBSemaphore : public AbstractToilet
 {
 private:
- 	PcoSemaphore mutex, lockMan, lockWoman;
-    int nbMan = 0, nbWoman = 0, nbWomanWaiting = 0;
+    PcoSemaphore mutex;
+
+    PcoSemaphore semWomanWait;
+    size_t nbWomanWait;
+
+    PcoSemaphore semManWait;
+    size_t nbManWait;
+
+    size_t nbIn;
+    bool isWomanIn;
 public:
-    ToiletBSemaphore(int nbSeats) : AbstractToilet(nbSeats), lockMan(0), lockWoman(0), mutex(1)
+    ToiletBSemaphore(int nbSeats) : AbstractToilet(nbSeats), mutex(1), semManWait(0), nbManWait(0),
+                                  semWomanWait(0), nbWomanWait(0), nbIn(0), isWomanIn(false)
     {}
 
     void manAccessing() override {
         mutex.acquire();
+        // Si des femmes sont en attente, on mettera les hommes en attente
+        while((nbIn > 0 && isWomanIn) || nbWomanWait > 0 || nbIn >= nbSeats) {
+            ++nbManWait;
+            mutex.release();
+            semManWait.acquire();
+            mutex.acquire();
+        }
+        ++nbIn;
+        isWomanIn = false;
         mutex.release();
     }
 
     void manLeaving() override {
 		mutex.acquire();
+        --nbIn;
+        // Les hommes peuvent venir s'il n'y a pas de femmes en attente
+        if(nbManWait > 0 && nbWomanWait == 0) {
+            --nbManWait;
+            semManWait.release();
+        } else if(nbWomanWait > 0 && nbIn == 0) {
+            for(int i = 0; i < nbWomanWait; ++i) semWomanWait.release();
+            nbWomanWait = 0;
+        }
       	mutex.release();
     }
 
     void womanAccessing() override {
         mutex.acquire();
+        while((nbIn > 0 && !isWomanIn) || nbIn >= nbSeats) {
+            ++nbWomanWait;
+            mutex.release();
+            semWomanWait.acquire();
+            mutex.acquire();
+        }
+        ++nbIn;
+        isWomanIn = true;
         mutex.release();
     }
 
     void womanLeaving() override {
         mutex.acquire();
+        --nbIn;
+        if(nbWomanWait > 0) {
+            --nbWomanWait;
+            semWomanWait.release();
+        } else if(nbManWait > 0 && nbIn == 0) {
+            for(int i = 0; i < nbManWait; ++i) semManWait.release();
+            nbManWait = 0;
+        }
         mutex.release();
     }
 };
 
 class ToiletBMesa : public AbstractToilet
 {
+private:
+    PcoMutex mutex;
+    PcoConditionVariable condMan, condWoman;
+
+    size_t nbIn, nbManWait, nbWomanWait;
+    bool isWomanIn;
 public:
-    ToiletBMesa(int nbSeats) : AbstractToilet(nbSeats)
+    ToiletBMesa(int nbSeats) : AbstractToilet(nbSeats), nbIn(0), nbManWait(0), nbWomanWait(0), isWomanIn(false)
     {}
 
     void manAccessing() override {
+        mutex.lock();
+        while((nbIn > 0 && isWomanIn) || nbWomanWait > 0 || nbIn >= nbSeats) {
+            ++nbManWait;
+            condMan.wait(&mutex);
+        }
+        ++nbIn;
+        isWomanIn = false;
+        mutex.unlock();
     }
 
     void manLeaving() override {
+        mutex.lock();
+        --nbIn;
+        if(nbManWait > 0 && nbWomanWait == 0) {
+            --nbManWait;
+            condMan.notifyOne();
+        } else if(nbWomanWait > 0 && nbIn == 0) {
+            condWoman.notifyAll();
+            nbWomanWait = 0;
+        }
+        mutex.unlock();
     }
 
     void womanAccessing() override {
+        mutex.lock();
+        while((nbIn > 0 && !isWomanIn) || nbIn >= nbSeats) {
+            ++nbWomanWait;
+            condWoman.wait(&mutex);
+        }
+        ++nbIn;
+        isWomanIn = true;
+        mutex.unlock();
     }
 
     void womanLeaving() override {
+        mutex.lock();
+        --nbIn;
+        if(nbWomanWait > 0) {
+            --nbWomanWait;
+            condWoman.notifyOne();
+        } else if(nbManWait > 0 && nbIn == 0) {
+            condMan.notifyAll();
+            nbManWait = 0;
+        }
+        mutex.unlock();
     }
 };
 
