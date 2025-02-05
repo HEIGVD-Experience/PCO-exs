@@ -163,9 +163,9 @@ protected:
     }
 };
 
-using MyTypes = ::testing::Types</*ToiletASemaphore,*/
-                                 ToiletAMesa/*,
-                                 ToiletAHoare,
+using MyTypes = ::testing::Types</*ToiletASemaphore,
+                                 ToiletAMesa,*/
+                                 ToiletAHoare/*,
                                  ToiletBSemaphore,
                                  ToiletBMesa,
                                  ToiletBHoare,

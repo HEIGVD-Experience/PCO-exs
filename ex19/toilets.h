@@ -173,20 +173,58 @@ public:
 
 class ToiletAHoare : public AbstractToilet, public PcoHoareMonitor
 {
+private:
+    size_t nbIn, nbManWait, nbWomanWait;
+    bool isWomanIn;
+    Condition manCond, womanCond;
 public:
-    ToiletAHoare(int nbSeats) : AbstractToilet(nbSeats)
+    ToiletAHoare(int nbSeats) : AbstractToilet(nbSeats), nbIn(0), nbManWait(0), nbWomanWait(0), isWomanIn(false)
     {}
 
     void manAccessing() override {
+        monitorIn();
+        if ((nbIn != 0 && isWomanIn) || nbIn >= nbSeats) {
+            ++nbManWait;
+            wait(manCond);
+            --nbManWait;
+        }
+        ++nbIn;
+        isWomanIn = false;
+        monitorOut();
     }
 
     void manLeaving() override {
+        monitorIn();
+        --nbIn;
+        if (nbManWait > 0) {
+            signal(manCond);
+        } else if (nbWomanWait > 0 && nbIn == 0) {
+            for(size_t i = 0 ; i < nbWomanWait ; i++) signal(womanCond);
+        }
+        monitorOut();
     }
 
     void womanAccessing() override {
+        monitorIn();
+        while ((nbIn != 0 && !isWomanIn) || nbIn >= nbSeats) {
+            ++nbWomanWait;
+            wait(womanCond);
+            --nbWomanWait;
+        }
+        ++nbIn;
+        isWomanIn = true;
+        monitorOut();
     }
 
     void womanLeaving() override {
+        monitorIn();
+        --nbIn;
+        if (nbWomanWait > 0) {
+            signal(womanCond);
+        } else if (nbManWait > 0 && nbIn == 0) {
+            for(size_t i = 0 ; i < nbManWait ; i++) signal(manCond);
+        }
+        monitorOut();
     }
 };
 
