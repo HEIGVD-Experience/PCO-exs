@@ -381,10 +381,8 @@ public:
         if ((nbIn > 0 && isWomanIn) || nbWomanWait > 0 || nbIn >= nbSeats) {
             ++nbManWait;
             wait(waitMan);
-            --nbManWait;
         }
         ++nbIn;
-        isWomanIn = false;
         monitorOut();
     }
 
@@ -392,7 +390,6 @@ public:
         monitorIn();
         --nbIn;
         if (nbManWait > 0 && nbWomanWait == 0) {
-            --nbManWait;
             signal(waitMan);
         } else if (nbWomanWait > 0 && nbIn == 0) {
             for(size_t i = 0 ; i < nbWomanWait ; i++) signal(waitWoman);
@@ -405,7 +402,6 @@ public:
         if ((nbIn > 0 && !isWomanIn) || nbIn >= nbSeats) {
             ++nbWomanWait;
             wait(waitWoman);
-            --nbWomanWait;
         }
         ++nbIn;
         isWomanIn = true;
@@ -416,9 +412,9 @@ public:
         monitorIn();
         --nbIn;
         if (nbWomanWait > 0) {
-            --nbWomanWait;
             signal(waitWoman);
         } else if (nbManWait > 0 && nbIn == 0) {
+			isWomanIn = false;
             for(size_t i = 0 ; i < nbManWait ; i++) signal(waitMan);
         }
         monitorOut();
