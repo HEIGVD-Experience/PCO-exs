@@ -423,20 +423,73 @@ public:
 
 class ToiletCSemaphore : public AbstractToilet
 {
+private:
+    PcoSemaphore mutex, semManWait, semWomanWait;
+
+    std::queue<char> toEnter;
+
+    int nbIn;
+    bool isWomanIn;
 public:
-    ToiletCSemaphore(int nbSeats) : AbstractToilet(nbSeats)
+    ToiletCSemaphore(int nbSeats) : AbstractToilet(nbSeats), mutex(1), semManWait(0),
+                                  semWomanWait(0), nbIn(0), isWomanIn(false)
     {}
 
     void manAccessing() override {
+        mutex.acquire();
+        while((nbIn > 0 && isWomanIn) || nbIn >= nbSeats || (!toEnter.empty() && toEnter.front() == 'F')) {
+            toEnter.push('M');
+            mutex.release();
+            semManWait.acquire();
+            mutex.acquire();
+        }
+        ++nbIn;
+        isWomanIn = false;
+        mutex.release();
     }
 
     void manLeaving() override {
+        mutex.acquire();
+        --nbIn;
+        if(nbIn > 0 && (!toEnter.empty() && toEnter.front() == 'M')) {
+            semManWait.release();
+            toEnter.pop();
+        } else if(nbIn == 0) {
+            while(toEnter.front() == 'F') {
+                toEnter.pop();
+                semWomanWait.release();
+            }
+        }
+        mutex.release();
     }
 
     void womanAccessing() override {
+        mutex.acquire();
+        while((nbIn > 0 && !isWomanIn) || nbIn >= nbSeats || (!toEnter.empty() && toEnter.front() == 'M')) {
+            toEnter.push('F');
+            mutex.release();
+            semWomanWait.acquire();
+            mutex.acquire();
+        }
+        ++nbIn;
+        isWomanIn = true;
+        mutex.release();
     }
 
     void womanLeaving() override {
+        mutex.acquire();
+        --nbIn;
+        if(nbIn > 0 && (!toEnter.empty() && toEnter.front() == 'F')) {
+            semWomanWait.release();
+            toEnter.pop();
+        } else if(nbIn == 0) {
+            isWomanIn = false;
+            while(toEnter.front() == 'M') {
+                toEnter.pop();
+                semManWait.release();
+            }
+        }
+        mutex.release();
     }
 };
 
