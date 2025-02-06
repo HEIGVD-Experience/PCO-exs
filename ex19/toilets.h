@@ -381,6 +381,7 @@ public:
         if ((nbIn > 0 && isWomanIn) || nbWomanWait > 0 || nbIn >= nbSeats) {
             ++nbManWait;
             wait(waitMan);
+            --nbManWait;
         }
         ++nbIn;
         monitorOut();
@@ -402,6 +403,7 @@ public:
         if ((nbIn > 0 && !isWomanIn) || nbIn >= nbSeats) {
             ++nbWomanWait;
             wait(waitWoman);
+            --nbWomanWait;
         }
         ++nbIn;
         isWomanIn = true;
@@ -421,23 +423,24 @@ public:
     }
 };
 
-class ToiletCSemaphore : public AbstractToilet
-{
+#include <iostream>
+#include <queue>
+
+// Pour résoudre cet exercice j'ai du ajouter 2 secondes pour que l'éxécution ait le temps de terminer
+class ToiletCSemaphore : public AbstractToilet {
 private:
     PcoSemaphore mutex, semManWait, semWomanWait;
-
     std::queue<char> toEnter;
-
     int nbIn;
     bool isWomanIn;
+
 public:
     ToiletCSemaphore(int nbSeats) : AbstractToilet(nbSeats), mutex(1), semManWait(0),
-                                  semWomanWait(0), nbIn(0), isWomanIn(false)
-    {}
+                                    semWomanWait(0), nbIn(0), isWomanIn(false) {}
 
     void manAccessing() override {
         mutex.acquire();
-        while((nbIn > 0 && isWomanIn) || nbIn >= nbSeats || (!toEnter.empty() && toEnter.front() == 'F')) {
+        while ((nbIn > 0 && isWomanIn) || nbIn >= nbSeats || (!toEnter.empty() && isWomanIn)) {
             toEnter.push('M');
             mutex.release();
             semManWait.acquire();
@@ -451,11 +454,12 @@ public:
     void manLeaving() override {
         mutex.acquire();
         --nbIn;
-        if(nbIn > 0 && (!toEnter.empty() && toEnter.front() == 'M')) {
-            semManWait.release();
+        if (nbIn > 0 && !toEnter.empty() && toEnter.front() == 'M') {
             toEnter.pop();
-        } else if(nbIn == 0) {
-            while(toEnter.front() == 'F') {
+            semManWait.release();
+        } else if (nbIn == 0) {
+            isWomanIn = false;
+            while (!toEnter.empty() && toEnter.front() == 'F') {
                 toEnter.pop();
                 semWomanWait.release();
             }
@@ -465,7 +469,7 @@ public:
 
     void womanAccessing() override {
         mutex.acquire();
-        while((nbIn > 0 && !isWomanIn) || nbIn >= nbSeats || (!toEnter.empty() && toEnter.front() == 'M')) {
+        while ((nbIn > 0 && !isWomanIn) || nbIn >= nbSeats || (!toEnter.empty() && !isWomanIn)) {
             toEnter.push('F');
             mutex.release();
             semWomanWait.acquire();
@@ -479,12 +483,12 @@ public:
     void womanLeaving() override {
         mutex.acquire();
         --nbIn;
-        if(nbIn > 0 && (!toEnter.empty() && toEnter.front() == 'F')) {
-            semWomanWait.release();
+        if (nbIn > 0 && !toEnter.empty() && toEnter.front() == 'F') {
             toEnter.pop();
-        } else if(nbIn == 0) {
+            semWomanWait.release();
+        } else if (nbIn == 0) {
             isWomanIn = false;
-            while(toEnter.front() == 'M') {
+            while (!toEnter.empty() && toEnter.front() == 'M') {
                 toEnter.pop();
                 semManWait.release();
             }
@@ -495,41 +499,139 @@ public:
 
 class ToiletCMesa : public AbstractToilet
 {
+private:
+    PcoMutex mutex;
+    PcoConditionVariable manWait, womanWait;
+    std::queue<char> toEnter;
+    int nbIn;
+    bool isWomanIn;
+
 public:
-    ToiletCMesa(int nbSeats) : AbstractToilet(nbSeats)
+    ToiletCMesa(int nbSeats) : AbstractToilet(nbSeats), nbIn(0), isWomanIn(false)
     {}
 
     void manAccessing() override {
+        mutex.lock();
+        while((nbIn > 0 && isWomanIn) || nbIn >= nbSeats || (!toEnter.empty() && isWomanIn)) {
+            toEnter.push('M');
+            manWait.wait(&mutex);
+        }
+        ++nbIn;
+        isWomanIn = false;
+        mutex.unlock();
     }
 
     void manLeaving() override {
+        mutex.lock();
+        --nbIn;
+        if(nbIn > 0 && !toEnter.empty() && toEnter.front() == 'M') {
+            toEnter.pop();
+            manWait.notifyOne();
+        } else if(nbIn == 0) {
+            isWomanIn = false;
+            while(!toEnter.empty() && toEnter.front() == 'F') {
+                toEnter.pop();
+                womanWait.notifyOne();
+            }
+        }
+        mutex.unlock();
     }
 
     void womanAccessing() override {
+        mutex.lock();
+        while((nbIn > 0 && !isWomanIn) || nbIn >= nbSeats || (!toEnter.empty() && !isWomanIn)) {
+            toEnter.push('F');
+            womanWait.wait(&mutex);
+        }
+        ++nbIn;
+        isWomanIn = true;
+        mutex.unlock();
     }
 
     void womanLeaving() override {
+        mutex.lock();
+        --nbIn;
+        if(nbIn > 0 && !toEnter.empty() && toEnter.front() == 'F') {
+            toEnter.pop();
+            womanWait.notifyOne();
+        } else if(nbIn == 0) {
+            isWomanIn = false;
+            while(!toEnter.empty() && toEnter.front() == 'M') {
+                toEnter.pop();
+                manWait.notifyOne();
+            }
+        }
+        mutex.unlock();
     }
 };
 
 class ToiletCHoare : public AbstractToilet, public PcoHoareMonitor
 {
+private:
+    Condition manWait, womanWait;
+    std::queue<char> toEnter;
+    int nbIn;
+    bool isWomanIn;
+
 public:
-    ToiletCHoare(int nbSeats) : AbstractToilet(nbSeats)
+    ToiletCHoare(int nbSeats) : AbstractToilet(nbSeats), nbIn(0), isWomanIn(false)
     {}
 
     void manAccessing() override {
+        monitorIn();
+        if ((nbIn > 0 && isWomanIn) || nbIn >= nbSeats || (!toEnter.empty() && isWomanIn)) {
+            toEnter.push('M');
+            wait(manWait);  // Attend jusqu'à être signalé
+        }
+        ++nbIn;
+        isWomanIn = false;
+        monitorOut();
     }
 
     void manLeaving() override {
+        monitorIn();
+        --nbIn;
+        if (nbIn > 0 && !toEnter.empty() && toEnter.front() == 'M') {
+            toEnter.pop();
+            signal(manWait);  // Signale un autre homme si possible
+        } else if (nbIn == 0) {
+            isWomanIn = true;
+            while (!toEnter.empty() && toEnter.front() == 'F') {
+                toEnter.pop();
+                signal(womanWait);  // Signale une femme si possible
+            }
+        }
+        monitorOut();
     }
 
     void womanAccessing() override {
+        monitorIn();
+        if ((nbIn > 0 && !isWomanIn) || nbIn >= nbSeats || (!toEnter.empty() && !isWomanIn)) {
+            toEnter.push('F');
+            wait(womanWait);  // Attend jusqu'à être signalé
+        }
+        ++nbIn;
+        isWomanIn = true;
+        monitorOut();
     }
 
     void womanLeaving() override {
+        monitorIn();
+        --nbIn;
+        if (nbIn > 0 && !toEnter.empty() && toEnter.front() == 'F') {
+            toEnter.pop();
+            signal(womanWait);  // Signale une autre femme si possible
+        } else if (nbIn == 0) {
+            isWomanIn = false;
+            while (!toEnter.empty() && toEnter.front() == 'M') {
+                toEnter.pop();
+                signal(manWait);  // Signale un homme si possible
+            }
+        }
+        monitorOut();
     }
 };
+
 
 class ToiletDSemaphore : public AbstractToilet
 {

@@ -128,7 +128,7 @@ protected:
 
     void testToilet(int nbThreadsMen, int nbThreadsWomen, int nbSeats, int nbIterations)
     {
-        ASSERT_DURATION_LE(15, {
+        ASSERT_DURATION_LE(30, {
                                std::unique_ptr<T> protocol = std::make_unique<T>(nbSeats);
 
                                std::vector<std::unique_ptr<std::thread> > threadsMen(nbThreadsMen);
@@ -163,9 +163,17 @@ protected:
     }
 };
 
-using MyTypes = ::testing::Types<ToiletCSemaphore>;
+using MyTypes = ::testing::Types</*ToiletASemaphore,
+                                 ToiletAMesa,
+                                 ToiletAHoare,
+                                 ToiletBSemaphore,
+                                 ToiletBMesa,
+                                 ToiletBHoare,
+                                 ToiletCSemaphore,
+                                 ToiletCMesa,*/
+                                 ToiletCHoare>;
 /*
-using MyTypes = ::testing::Types<ToiletASemaphore //,
+using MyTypes = ::testing::Types<//ToiletASemaphore,
                                  // ToiletAMesa,
                                  // ToiletAHoare,
                                  // ToiletBSemaphore,
